@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduHub Pro - Premium Coaching Management</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/simple-peer@latest/simplepeer.min.js"></script>
+    <style>
+        :root {
+            --primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --accent: #4facfe;
+            --bg: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --card: rgba(255, 255, 255, 0.95);
+            --text: #2c3e50;
+            --border: rgba(0, 0, 0, 0.1);
+            --shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; overflow-x: hidden; }
+        .container { max-width: 100%; margin: 0 auto; padding: 0 1rem; }
+        header { background: var(--primary); color: white; padding: 1rem 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
+        nav { display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.5rem; font-weight: bold; }
+        .user-menu { display: flex; align-items: center; gap: 1rem; }
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 50px; cursor: pointer; font-size: 0.9rem; font-weight: 600; text-decoration: none; display: inline-block; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .btn-primary { background: var(--secondary); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(245, 87, 108, 0.4); }
+        .btn-secondary { background: transparent; color: white; border: 2px solid white; }
+        .btn-secondary:hover { background: white; color: var(--text); }
+        .main { padding: 2rem 0; }
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .card { background: var(--card); border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow); backdrop-filter: blur(10px); border: 1px solid var(--border); transition: transform 0.3s ease; }
+        .card:hover { transform: translateY(-5px); }
+        .card h3 { margin-bottom: 1rem; color: var(--text); font-size: 1.2rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text); }
+        input, select, textarea { width: 100%; padding: 0.75rem; border: 2px solid var(--border); border-radius: 10px; font-size: 1rem; transition: border-color 0.3s ease; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1); }
+        .students-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
+        .student-card { background: white; border-radius: 15px; padding: 1rem; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: all 0.3s ease; }
+        .student-card:hover { transform: scale(1.05); }
+        .status { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
+        .status.present { background: #d1fae5; color: var(--success); }
+        .status.absent { background: #fee2e2; color: var(--danger); }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 200; justify-content: center; align-items: center; }
+        .modal-content { background: var(--card); padding: 2rem; border-radius: 20px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: var(--shadow); }
+        .close { float: right; font-size: 2rem; cursor: pointer; color: #aaa; }
+        .close:hover { color: var(--text); }
+        .video-container { display: flex; gap: 1rem; margin: 1rem 0; }
+        video { width: 100%; max-width: 300px; border-radius: 10px; }
+        .chat { background: var(--card); border-radius: 10px; padding: 1rem; height: 300px; overflow-y: auto; margin-bottom: 1rem; }
+        .chat-message { margin-bottom: 0.5rem; padding: 0.5rem; background: white; border-radius: 10px; }
+        #proctor-alert { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--danger); color: white; padding: 2rem; border-radius: 10px; display: none; z-index: 300; }
+        .hidden { display: none; }
+        footer { background: var(--primary); color: white; text-align: center; padding: 1rem; margin-top: 2rem; }
+        @media (max-width: 768px) { .dashboard { grid-template-columns: 1fr; } .video-container { flex-direction: column; } }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <div class="logo">EduHub Pro</div>
+            <div class="user-menu">
+                <span id="user-role">Teacher</span>
+                <button class="btn btn-secondary" onclick="logout()">Logout</button>
+            </div>
+        </nav>
+    </header>
+    <main class="main container">
+        <div id="dashboard">
+            <!-- Dynamic content loaded here -->
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2025 EduHub Pro. All rights reserved. Built with ❤️ for educators.</p>
+    </footer>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal" style="display: flex;">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('login-modal')">&times;</span>
+            <h2>Welcome to EduHub Pro</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="login-email" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" required>
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <select id="login-role">
+                        <option value="teacher">Teacher</option>
+                        <option value="student">Student</option>
+                        <option value="parent">Parent</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Video Call Modal -->
+    <div id="video-modal" class="modal">
+        <div class="modal-content" style="width: 90%; max-width: 800px;">
+            <span class="close" onclick="closeModal('video-modal')">&times;</span>
+            <h2>Live Class</h2>
+            <div class="video-container">
+                <video id="local-video" autoplay muted></video>
+                <video id="remote-video" autoplay></video>
+            </div>
+            <button id="share-screen" class="btn btn-primary">Share Screen</button>
+            <button id="end-call" class="btn" style="background: var(--danger); color: white;">End Class</button>
+            <div class="chat">
+                <div id="chat-messages"></div>
+                <input type="text" id="chat-input" placeholder="Type message..." style="width: 100%; padding: 0.5rem; border-radius: 5px; border: 1px solid var(--border);">
+            </div>
+        </div>
+    </div>
+
+    <!-- Proctor Alert -->
+    <div id="proctor-alert">
+        <h3>Cheating Detected!</h3>
+        <p>App switch detected. You are disqualified.</p>
+    </div>
+
+    <script>
+        // Premium Feel Enhancements: Smooth animations, gradients, shadows
+        const { jsPDF } = window.jspdf;
+        let currentUser = null;
+        let students = JSON.parse(localStorage.getItem('students')) || [];
+        let attendance = JSON.parse(localStorage.getItem('attendance')) || {};
+        let notes = JSON.parse(localStorage.getItem('notes')) || [];
+        let payments = JSON.parse(localStorage.getItem('payments')) || {};
+        let peer = null;
+        let localStream = null;
+
+        // Simulate data for MVP
+        if (students.length === 0) {
+            students = Array.from({length: 20}, (_, i) => ({
+                id: i + 1,
+                name: `Student ${i + 1}`,
+                parentContact: `+1-555-${String(i+1).padStart(3,'0')}-000`,
+                email: `student${i+1}@edu.com`
+            }));
+            localStorage.setItem('students', JSON.stringify(students));
+        }
+
+        // Login
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const role = document.getElementById('login-role').value;
+            currentUser = { email, role };
+            document.getElementById('user-role').textContent = role.charAt(0).toUpperCase() + role.slice(1);
+            closeModal('login-modal');
+            loadDashboard();
+        });
+
+        function loadDashboard() {
+            const dashboard = document.getElementById('dashboard');
+            if (currentUser.role === 'teacher') {
+                dashboard.innerHTML = `
+                    <div class="card">
+                        <h3>📝 Take Attendance</h3>
+                        <select id="student-select">
+                            ${students.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                        </select>
+                        <button class="btn btn-primary" onclick="markAttendance()">Mark Present</button>
+                        <button class="btn" style="background: var(--warning); color: white;" onclick="sendAbsentMsg()">Send Absent Alert</button>
+                    </div>
+                    <div class="card">
+                        <h3>💰 Payment Reminders</h3>
+                        <button class="btn btn-primary" onclick="sendPaymentReminder()">Send Monthly Reminders</button>
+                        <p>Status: ${Object.values(payments).filter(p => p.verified).length}/${students.length} Paid</p>
+                    </div>
+                    <div class="card">
+                        <h3>📚 Upload Notes</h3>
+                        <input type="file" id="notes-file" accept=".pdf,.doc">
+                        <button class="btn btn-primary" onclick="uploadNotes()">Upload</button>
+                        <div id="notes-list">${notes.map(n => `<p>${n.name} <button onclick="downloadNote('${n.url}')">Download</button></p>`).join('')}</div>
+                    </div>
+                    <div class="card">
+                        <h3>🔔 Announcements</h3>
+                        <textarea id="announcement-text" placeholder="Type announcement..."></textarea>
+                        <button class="btn btn-primary" onclick="sendAnnouncement()">Send to Group</button>
+                    </div>
+                    <div class="card">
+                        <h3>❓ Doubt Solving</h3>
+                        <textarea id="doubt-text" placeholder="Post your doubt..."></textarea>
+                        <button class="btn btn-primary" onclick="postDoubt()">Post Doubt</button>
+                        <div id="doubts-list"><!-- Doubts here --></div>
+                    </div>
+                    <div class="card">
+                        <h3>📹 Start Live Class</h3>
+                        <button class="btn btn-primary" onclick="startVideoCall()">Start Video Class</button>
+                    </div>
+                    <div class="card">
+                        <h3>📊 Export Reports</h3>
+                        <button class="btn btn-primary" onclick="exportAttendancePDF('monthly')">Monthly PDF</button>
+                        <button class="btn btn-primary" onclick="exportAttendancePDF('annual')">Annual PDF</button>
+                    </div>
+                `;
+            } else if (currentUser.role === 'student' || currentUser.role === 'parent') {
+                dashboard.innerHTML = `
+                    <div class="card">
+                        <h3>📊 My Status</h3>
+                        <p>Attendance: ${calculateAttendanceRate()}%</p>
+                        <p>Marks: ${Math.floor(Math.random() * 100)}/100</p>
+                        <p>Payment: ${payments[currentUser.email]?.verified ? 'Paid' : 'Pending'}</p>
+                    </div>
+                    <div class="card">
+                        <h3>📚 Notes & Materials</h3>
+                        <div id="student-notes">${notes.map(n => `<p>${n.name} <button onclick="downloadNote('${n.url}')">Download</button></p>`).join('')}</div>
+                    </div>
+                    <div class="card">
+                        <h3>🔔 Announcements</h3>
+                        <div id="student-announcements"><!-- Announcements --></div>
+                    </div>
+                    <div class="card">
+                        <h3>❓ Doubts</h3>
+                        <textarea placeholder="Post doubt..."></textarea>
+                        <button class="btn btn-primary">Post</button>
+                        <div id="student-doubts"><!-- Doubts --></div>
+                    </div>
+                    <div class="card">
+                        <h3>📝 Online Test</h3>
+                        <button class="btn btn-primary" onclick="startProctoredTest()">Take Test</button>
+                    </div>
+                `;
+            }
+        }
+
+        function markAttendance() {
+            const studentId = document.getElementById('student-select').value;
+            const date = new Date().toISOString().split('T')[0];
+            if (!attendance[studentId]) attendance[studentId] = [];
+            attendance[studentId].push({ date, present: true });
+            localStorage.setItem('attendance', JSON.stringify(attendance));
+            alert('Attendance marked!');
+        }
+
+        function sendAbsentMsg() {
+            const studentId = document.getElementById('student-select').value;
+            const student = students.find(s => s.id == studentId);
+            if (confirm(`Send to ${student.parentContact}: Reason for absence?`)) {
+                // Simulate SMS - in real, integrate Twilio via API
+                alert(`Message sent to ${student.parentContact}: Please provide reason for ${student.name}'s absence.`);
+            }
+        }
+
+        function sendPaymentReminder() {
+            students.forEach(s => {
+                if (!payments[s.email]?.verified) {
+                    // Simulate
+                    alert(`Reminder sent to ${s.parentContact} for ${s.name}`);
+                    payments[s.email] = { ...payments[s.email], reminded: true };
+                }
+            });
+            localStorage.setItem('payments', JSON.stringify(payments));
+        }
+
+        function uploadNotes() {
+            const file = document.getElementById('notes-file').files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                notes.push({ name: file.name, url });
+                localStorage.setItem('notes', JSON.stringify(notes));
+                loadDashboard();
+            }
+        }
+
+        function downloadNote(url) {
+            // Simulate download
+            window.open(url);
+        }
+
+        function sendAnnouncement() {
+            const text = document.getElementById('announcement-text').value;
+            if (text) {
+                // Simulate broadcast
+                alert('Announcement sent to all!');
+                document.getElementById('announcement-text').value = '';
+            }
+        }
+
+        function postDoubt() {
+            const text = document.getElementById('doubt-text').value;
+            if (text) {
+                // Add to doubts list
+                document.getElementById('doubts-list').innerHTML += `<p>${text}</p>`;
+                document.getElementById('doubt-text').value = '';
+            }
+        }
+
+        // Video Call with WebRTC (Simple Peer-to-Peer)
+        async function startVideoCall() {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            document.getElementById('local-video').srcObject = localStream;
+
+            // For MVP, use a fixed room ID or prompt for peer ID
+            const peerId = prompt('Enter student/parent ID for call:');
+            peer = new SimplePeer({ initiator: true, stream: localStream });
+
+            peer.on('signal', data => {
+                // Send signal via signaling server - MVP: console for demo
+                console.log('Signal to peer:', data);
+                // In real: POST to signaling endpoint
+            });
+
+            peer.on('stream', stream => {
+                document.getElementById('remote-video').srcObject = stream;
+            });
+
+            document.getElementById('video-modal').style.display = 'flex';
+
+            // Screen Share
+            document.getElementById('share-screen').onclick = async () => {
+                const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                localStream.getVideoTracks()[0].replaceTrack(screenStream.getVideoTracks()[0]);
+            };
+
+            // End Call
+            document.getElementById('end-call').onclick = () => {
+                localStream.getTracks().forEach(track => track.stop());
+                peer.destroy();
+                closeModal('video-modal');
+            };
+
+            // Chat
+            document.getElementById('chat-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const msg = e.target.value;
+                    document.getElementById('chat-messages').innerHTML += `<div class="chat-message"><strong>You:</strong> ${msg}</div>`;
+                    // Send via data channel
+                    if (peer) peer.send(msg);
+                    e.target.value = '';
+                }
+            });
+
+            peer.on('data', data => {
+                document.getElementById('chat-messages').innerHTML += `<div class="chat-message"><strong>Peer:</strong> ${data}</div>`;
+            });
+        }
+
+        // Proctoring for Tests (Basic: Visibility Check & App Switch Detection)
+        function startProctoredTest() {
+            if (currentUser.role !== 'student') return alert('Only for students');
+            // Lock screen simulation: Fullscreen + visibility listener
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    document.getElementById('proctor-alert').style.display = 'block';
+                    setTimeout(() => { document.getElementById('proctor-alert').style.display = 'none'; }, 3000);
+                    // Disqualify logic
+                    alert('Test ended due to tab switch.');
+                }
+            });
+            // Request fullscreen
+            document.body.requestFullscreen().catch(() => {});
+            // Simple test UI
+            const testModal = document.createElement('div');
+            testModal.className = 'modal';
+            testModal.style.display = 'flex';
+            testModal.innerHTML = `
+                <div class="modal-content">
+                    <h2>Online Test</h2>
+                    <p>Question 1: 2+2=?</p>
+                    <input type="number" id="test-answer">
+                    <button class="btn btn-primary" onclick="submitTest()">Submit</button>
+                </div>
+            `;
+            document.body.appendChild(testModal);
+        }
+
+        function submitTest() {
+       
